@@ -1,0 +1,503 @@
+{
+ "gdVersion": {
+  "major": 5,
+  "minor": 5,
+  "build": 0
+ },
+ "properties": {
+  "name": "Demo C++",
+  "windowWidth": 1280,
+  "windowHeight": 720
+ },
+ "firstLayout": "Level1",
+ "variables": [
+  {
+   "name": "totalCoins",
+   "type": "number",
+   "value": 0
+  }
+ ],
+ "resources": {
+  "resources": [
+   {
+    "name": "player.png",
+    "file": "player.png",
+    "kind": "image"
+   },
+   {
+    "name": "coin.png",
+    "file": "coin.png",
+    "kind": "image"
+   }
+  ]
+ },
+ "objects": [],
+ "layouts": [
+  {
+   "name": "Level1",
+   "r": 30,
+   "g": 34,
+   "b": 50,
+   "layers": [
+    {
+     "name": "",
+     "visibility": true
+    }
+   ],
+   "variables": [
+    {
+     "name": "score",
+     "type": "number",
+     "value": 0
+    }
+   ],
+   "objects": [
+    {
+     "name": "Player",
+     "type": "Sprite",
+     "variables": [],
+     "animations": [
+      {
+       "name": "",
+       "directions": [
+        {
+         "sprites": [
+          {
+           "image": "player.png"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Coin",
+     "type": "Sprite",
+     "variables": [],
+     "animations": [
+      {
+       "name": "",
+       "directions": [
+        {
+         "sprites": [
+          {
+           "image": "coin.png"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Spinner",
+     "type": "Scene3D::Cube3DObject",
+     "variables": [],
+     "content": {
+      "width": 160,
+      "height": 160,
+      "depth": 160,
+      "frontFaceResourceName": ""
+     }
+    }
+   ],
+   "instances": [
+    {
+     "name": "Player",
+     "x": 100,
+     "y": 300,
+     "layer": "",
+     "zOrder": 2,
+     "angle": 0,
+     "customSize": false
+    },
+    {
+     "name": "Coin",
+     "x": 600,
+     "y": 300,
+     "layer": "",
+     "zOrder": 0,
+     "angle": 0,
+     "customSize": false
+    },
+    {
+     "name": "Coin",
+     "x": 900,
+     "y": 200,
+     "layer": "",
+     "zOrder": 0,
+     "angle": 0,
+     "customSize": false
+    },
+    {
+     "name": "Spinner",
+     "x": 1000,
+     "y": 80,
+     "layer": "",
+     "zOrder": 0,
+     "angle": 0,
+     "customSize": true,
+     "z": 0,
+     "width": 160,
+     "height": 160,
+     "depth": 160,
+     "rotationX": 35,
+     "rotationY": 25
+    }
+   ],
+   "events": [
+    {
+     "type": "BuiltinCommonInstructions::Standard",
+     "conditions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "BuiltinCommonInstructions::Always"
+       },
+       "parameters": []
+      }
+     ],
+     "actions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "Rotate"
+       },
+       "parameters": [
+        "Spinner",
+        "90"
+       ]
+      }
+     ],
+     "events": []
+    },
+    {
+     "type": "BuiltinCommonInstructions::Standard",
+     "conditions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "KeyPressed"
+       },
+       "parameters": [
+        "",
+        "Right"
+       ]
+      }
+     ],
+     "actions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "SetX"
+       },
+       "parameters": [
+        "Player",
+        "+",
+        "400*TimeDelta()"
+       ]
+      }
+     ],
+     "events": []
+    },
+    {
+     "type": "BuiltinCommonInstructions::Standard",
+     "conditions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "KeyPressed"
+       },
+       "parameters": [
+        "",
+        "Left"
+       ]
+      }
+     ],
+     "actions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "SetX"
+       },
+       "parameters": [
+        "Player",
+        "-",
+        "400*TimeDelta()"
+       ]
+      }
+     ],
+     "events": []
+    },
+    {
+     "type": "BuiltinCommonInstructions::Standard",
+     "conditions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "KeyPressed"
+       },
+       "parameters": [
+        "",
+        "Up"
+       ]
+      }
+     ],
+     "actions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "SetY"
+       },
+       "parameters": [
+        "Player",
+        "-",
+        "400*TimeDelta()"
+       ]
+      }
+     ],
+     "events": []
+    },
+    {
+     "type": "BuiltinCommonInstructions::Standard",
+     "conditions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "KeyPressed"
+       },
+       "parameters": [
+        "",
+        "Down"
+       ]
+      }
+     ],
+     "actions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "SetY"
+       },
+       "parameters": [
+        "Player",
+        "+",
+        "400*TimeDelta()"
+       ]
+      }
+     ],
+     "events": []
+    },
+    {
+     "type": "BuiltinCommonInstructions::Standard",
+     "conditions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "MouseButtonPressed"
+       },
+       "parameters": [
+        "",
+        "Left"
+       ]
+      }
+     ],
+     "actions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "SetXY"
+       },
+       "parameters": [
+        "Player",
+        "=",
+        "MouseX()-Player.Width()/2",
+        "MouseY()-Player.Height()/2"
+       ]
+      }
+     ],
+     "events": []
+    },
+    {
+     "type": "BuiltinCommonInstructions::Standard",
+     "conditions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "CollisionNP"
+       },
+       "parameters": [
+        "Player",
+        "Coin",
+        ""
+       ]
+      }
+     ],
+     "actions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "Delete"
+       },
+       "parameters": [
+        "Coin"
+       ]
+      },
+      {
+       "type": {
+        "inverted": false,
+        "value": "ModVarScene"
+       },
+       "parameters": [
+        "score",
+        "+",
+        "1"
+       ]
+      },
+      {
+       "type": {
+        "inverted": false,
+        "value": "ModVarGlobal"
+       },
+       "parameters": [
+        "totalCoins",
+        "+",
+        "1"
+       ]
+      }
+     ],
+     "events": []
+    },
+    {
+     "type": "BuiltinCommonInstructions::Standard",
+     "conditions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "VarScene"
+       },
+       "parameters": [
+        "score",
+        ">=",
+        "2"
+       ]
+      }
+     ],
+     "actions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "Scene"
+       },
+       "parameters": [
+        "",
+        "\"Win\"",
+        ""
+       ]
+      }
+     ],
+     "events": []
+    }
+   ]
+  },
+  {
+   "name": "Win",
+   "r": 20,
+   "g": 60,
+   "b": 40,
+   "layers": [
+    {
+     "name": "",
+     "visibility": true
+    }
+   ],
+   "variables": [],
+   "objects": [
+    {
+     "name": "Spinner",
+     "type": "Scene3D::Cube3DObject",
+     "variables": [],
+     "content": {
+      "width": 160,
+      "height": 160,
+      "depth": 160,
+      "frontFaceResourceName": ""
+     }
+    }
+   ],
+   "instances": [
+    {
+     "name": "Spinner",
+     "x": 560,
+     "y": 280,
+     "layer": "",
+     "zOrder": 0,
+     "angle": 0,
+     "customSize": true,
+     "width": 160,
+     "height": 160,
+     "depth": 160,
+     "rotationX": 20,
+     "rotationY": 40
+    }
+   ],
+   "events": [
+    {
+     "type": "BuiltinCommonInstructions::Standard",
+     "conditions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "BuiltinCommonInstructions::Always"
+       },
+       "parameters": []
+      }
+     ],
+     "actions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "Rotate"
+       },
+       "parameters": [
+        "Spinner",
+        "120"
+       ]
+      }
+     ],
+     "events": []
+    },
+    {
+     "type": "BuiltinCommonInstructions::Standard",
+     "conditions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "Timer"
+       },
+       "parameters": [
+        "",
+        "3",
+        "\"t\""
+       ]
+      }
+     ],
+     "actions": [
+      {
+       "type": {
+        "inverted": false,
+        "value": "Scene"
+       },
+       "parameters": [
+        "",
+        "\"Level1\"",
+        ""
+       ]
+      }
+     ],
+     "events": []
+    }
+   ]
+  }
+ ]
+}

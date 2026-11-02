@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'io.gdcpp.player'
+    compileSdk 34
+    ndkVersion '26.1.10909125'
+
+    defaultConfig {
+        applicationId 'io.gdcpp.player'
+        minSdk 30          // AImageDecoder (decodificação de PNG/JPG/WebP nativa) exige API 30+
+        targetSdk 34
+        versionCode 1
+        versionName '1.0.0'
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
+        externalNativeBuild {
+            cmake { arguments '-DANDROID_STL=c++_static' }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
+            version '3.22.1'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Assinado com a chave de debug para o APK instalar direto. Troque por uma keystore sua para publicar.
+            signingConfig signingConfigs.debug
+        }
+    }
+}
