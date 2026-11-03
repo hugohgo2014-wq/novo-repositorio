@@ -1,7 +1,8 @@
-build/
 .gradle/
-android/app/build/
-android/app/.cxx/
-android/local.properties
-*.iml
 .idea/
+local.properties
+**/build/
+.externalNativeBuild/
+.cxx/
+*.iml
+.DS_Store

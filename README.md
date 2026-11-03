@@ -1,44 +1,96 @@
-# GDevelop C++ Native Editor — Preview 1.1.0
+# NEBULA — Universe Sandbox Mobile
 
-Editor Android nativo em C++ usando **NativeActivity + EGL + OpenGL ES 3.0**. A interface é desenhada por shaders e primitivas OpenGL. Não usa WebView, HTML, CSS, JavaScript, Chromium, React ou Canvas.
+**Android · C++20 · OpenGL ES 3.0 · JNI · CMake · Gradle · GitHub Actions**
 
-## Objetivo desta versão
+NEBULA is a mobile, real-time space sandbox. The Android interface is Java, while the simulation and renderer run natively in C++ through the Android NDK. Planet surfaces are generated in the vertex shader; no planet JPEG is used as the surface itself.
 
-Substituir a interface web da tentativa anterior por uma base de editor nativa, mantendo a engine/runtime C++ existente.
+## Build the APK with GitHub Actions
 
-## O que esta prévia faz
+1. Create a GitHub repository and upload the contents of this folder (the `.github` folder must be included).
+2. Push to `main` or `master`, or open **Actions → Build NEBULA APK → Run workflow**.
+3. Open the successful workflow run and download the artifact named **NEBULA-Universe-Sandbox-APK**.
+4. Inside the artifact is `app-debug.apk`. Install it on an Android device that supports OpenGL ES 3.0.
 
-- Carrega a estrutura de `game/project.json` com o parser C++ existente.
-- Lista cenas e objetos.
-- Alterna entre cenas.
-- Desenha o palco, grade e instâncias com OpenGL ES 3.0.
-- Seleciona instâncias tocando nelas.
-- Move a instância selecionada tocando em outra posição do palco.
-- Cria uma definição de objeto baseada no primeiro objeto existente.
-- Cria instâncias a partir do primeiro objeto da cena.
-- Ajusta a posição X no inspetor e exclui instâncias.
-- Grava um snapshot textual da sessão no armazenamento interno do aplicativo.
+The workflow installs Android API 35, NDK `27.2.12479018`, CMake `3.22.1`, Java 17 and Gradle `8.10.2`, then runs `gradle assembleDebug`.
 
-## Limitações explícitas
+### Build locally
 
-Esta ainda é uma prévia técnica, não um editor equivalente ao GDevelop completo. O botão de salvar grava um snapshot da sessão, **não reserializa o `project.json` original**. Ainda faltam: serializador JSON com preservação de extensões desconhecidas, seletor/importador nativo de arquivos, editor de propriedades numéricas, editor visual de eventos, gerenciamento de assets, undo/redo, preview de runtime dentro do editor e pipeline de exportação APK dentro do app. A interface OpenGL atual usa primitivas e uma fonte bitmap 5x7 desenhada como geometria; o próximo passo é um sistema de UI nativo mais completo e renderização de assets no palco.
-
-## Compilar
-
-O projeto Android usa NDK `26.1.10909125`, CMake `3.22.1`, API 34 e Gradle 8.9:
+Install Android Studio / Android SDK, NDK `27.2.12479018`, CMake `3.22.1`, Java 17 and Gradle 8.10.2. Then run from this directory:
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-gradle -p android assembleDebug
+gradle assembleDebug
 ```
 
-O APK Android precisa ser validado pelo GitHub Actions ou em uma máquina com Android SDK/NDK. O ambiente de edição não inclui um dispositivo Android para validar a interface visualmente.
+APK output:
 
-## Estrutura
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
 
-- `engine/`: runtime e parser C++ existentes.
-- `android/app/src/main/cpp/android_main.cpp`: aplicação nativa e interface OpenGL ES 3.
-- `android/app/src/main/cpp/CMakeLists.txt`: build NDK.
-- `android/app/src/main/assets/game/`: projeto de demonstração.
+## Controls
+
+- **Drag:** orbit the free camera.
+- **Pinch:** zoom in and out. The zoom range extends from system scale to close planetary inspection.
+- **Two-finger drag:** pan the camera target; one-finger drag continues to orbit.
+- **Double-tap a body:** select it, center the camera and show its physical information.
+- **Ⅱ / ▶:** pause or resume the simulation. The camera remains usable while paused.
+- **TEMPO ×:** cycle through 1×, 60×, 600×, 3,600× and 86,400× simulation time.
+- **CÂMERA:** switch between free camera and close planetary flyover.
+- **+ PLANETA:** add a new rocky body to the N-body system.
+- **METEORO:** launch a 10 km-class asteroid toward the selected body (or Earth when the star is selected) to test crater formation, ejecta and atmospheric damage. Choose 60× first to watch the approach; at higher speeds the impact arrives quickly. A convenient test: double-tap Earth, set 60×, press METEORO, and watch the asteroid arrive.
+- **GRAVIDADE:** switch between Newtonian stable gravity and the experimental finite-propagation demonstration.
+- **LUZ / VISÃO:** switch between present-position rendering and a light-time observer view. Illumination uses the source's retarded emission state in both views.
+- **EDITAR:** change the selected body's mass, radius and spin rate.
+- **REMOVER:** remove the selected body. Removing the Sun lets you observe delayed sunlight at Earth; the historical light source remains available until its photons' travel time has elapsed.
+- **RESET:** restore the Solar System scenario.
+
+## Simulation systems
+
+### N-body dynamics
+
+The initial scene contains the Sun, Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune and the Moon. Bodies use SI units internally (metres, kilograms and seconds), velocity-Verlet integration, pairwise gravity and a bounded simulation step. The time controller adjusts simulated seconds per real second.
+
+The default gravity setting is the **experimental retarded-source mode**. It samples historical source positions from a time ring buffer using distance divided by `c`. The alternate Newtonian mode is the stable reference mode. This retarded Newtonian demonstration is intentionally not described as a full general-relativistic solver: a physically accurate relativistic N-body integrator needs the appropriate velocity-dependent and field terms, not merely a delayed inverse-square force. This distinction is important for long-term orbital accuracy.
+
+### Light travel time
+
+The renderer stores historical source positions and luminosity states. A body's illumination samples the luminous source at approximately `t - distance/c`. Thus, when the Sun is removed, Earth does not lose sunlight at the same simulation instant. At one astronomical unit the light travel time is about 499 seconds (roughly 8 minutes 19 seconds; it varies slightly with orbital distance).
+
+The observer mode also samples historical object positions to demonstrate light-cone viewing. The normal mode keeps object positions current while retaining delayed illumination.
+
+### Procedural planetary surfaces
+
+The OpenGL ES shader creates terrain from 3D noise, ridged detail and persistent crater records. Geometry is displaced at render time, rather than displaying a flat planet image. The renderer switches between a lower-resolution and a high-resolution sphere mesh based on camera distance, while retaining shader noise and crater displacement. At system scale, apparent radii are enlarged for touch selection; physical radii remain unchanged in gravity and collision calculations. Rotation-induced flattening and a deliberately exaggerated visual tidal-deformation term affect the rendered shape. Actual equilibrium tides are tiny at planetary scale, so the visual multiplier makes the effect inspectable instead of pretending it is naturally enormous. Close flyover uses the same spherical terrain and atmospheric shell, so the view can approach the surface.
+
+### Atmospheres and gas giants
+
+Atmosphere shells use view-angle scattering, animated cloud bands and impact-event data. Impacts can create a directional atmospheric scar / opening effect and an expanding shock feature that recovers gradually. Gas-giant surface bands are animated in the shader; Jupiter and Saturn have translucent ring meshes.
+
+### Multi-material collisions
+
+Collision handling evaluates relative impact speed, reduced mass, specific impact energy, body material and an approximate catastrophic-disruption threshold. Small projectiles are captured rather than bouncing unrealistically off a planet; their impact energy is used for craters and ejecta. Low-energy contacts can accrete into a larger remnant with mass and linear momentum conserved; grazing impacts use a material-dependent restitution; energetic collisions reduce the largest remnant and spawn material-tagged ejecta. Ejecta retain iron / silicate / ice identity, ballistic velocity and a cooling state. Their local cloud uses a compact SPH kernel for density, compressive pressure and artificial viscosity, with material-dependent reference density and sound speed; a spatial hash limits neighbour work on mobile hardware. Crater records deform the target's procedural terrain, and atmospheric impacts modify the atmosphere shader.
+
+This is a **mobile reduced-order impact model inspired by multi-material SPH giant-impact methods**, not a million-particle research hydrocode. Research-grade planetary impact calculations use very large SPH particle counts and material equations of state; the mobile model trades numerical resolution for interactive frame rates while retaining energy-based outcomes and visible material ejecta.
+
+## Project layout
+
+```text
+.github/workflows/android.yml       GitHub Actions APK build
+app/src/main/AndroidManifest.xml    Android app declaration
+app/src/main/java/.../MainActivity.java  Touch UI, gestures, OpenGL surface and JNI bridge
+app/src/main/cpp/CMakeLists.txt     Native build configuration
+app/src/main/cpp/native-lib.cpp     N-body simulation, collisions, history, shaders and renderer
+app/build.gradle                    Android Gradle / NDK configuration
+```
+
+## Technical references
+
+- Stanford / Gravity Probe B: gravity propagation and relativistic corrections — https://einstein.stanford.edu/content/relativity/q1510.html
+- Stanford / Gravity Probe B: why a naive Newtonian delay is not the full relativistic result — https://einstein-new.stanford.edu/content/relativity/a10662.html
+- Lunar-forming impacts and SPH modelling — https://pmc.ncbi.nlm.nih.gov/articles/PMC4128262/
+- Differentiated planetary impact simulations — https://academic.oup.com/mnras/article/517/3/3132/6632983
+- Android NDK and CMake configuration — https://developer.android.com/studio/projects/install-ndk
+
+## License
+
+Source code in this project is provided under the MIT License. See `LICENSE`.
