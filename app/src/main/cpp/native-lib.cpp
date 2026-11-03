@@ -150,7 +150,7 @@ void main(){float type=floor(uType+0.5);vec3 base;vec3 n=normalize(vNormal);floa
  else if(type==3.0){base=mix(vec3(0.12,0.26,0.43),vec3(0.86,0.94,1.0),noise*0.75+0.15);}
  else if(type==4.0){base=mix(vec3(0.22,0.20,0.18),vec3(0.65,0.43,0.30),noise);}
  else {float sea=smoothstep(-0.004,0.006,h);vec3 ocean=vec3(0.018,0.10,0.26);vec3 land=mix(vec3(0.11,0.25,0.09),vec3(0.43,0.39,0.23),smoothstep(0.0,0.02,h));float snow=smoothstep(0.72,0.94,abs(vLocal.y)+noise*0.08);base=mix(ocean,land,sea);base=mix(base,vec3(0.82,0.87,0.82),snow);float lava=smoothstep(0.82,0.96,noise)*smoothstep(0.05,0.12,uTemperature/3000.0);base=mix(base,vec3(1.0,0.19,0.015),lava);}
- float diffuse=max(dot(n,normalize(uLightDir)),0.0);float ambient=type==0.0?1.0:0.0;float light=ambient+diffuse*(uLightPower*0.90);vec3 color=base*light;
+ float ndl=dot(n,normalize(uLightDir));float diffuse=max(ndl,0.0);float twilight=smoothstep(-0.20,0.10,ndl);float ambient=type==0.0?1.0:0.018;float light=ambient+twilight*(0.055+diffuse*(uLightPower*0.90));vec3 color=base*light;
  if(type==0.0)color*=1.45;float rim=pow(1.0-max(dot(n,normalize(uLightDir)),0.0),3.0);color+=vec3(0.06,0.16,0.30)*rim*0.17;
  fragColor=vec4(color,1.0);}
 )GLSL";
@@ -207,7 +207,7 @@ public:
     GLuint particleVAO=0,particleVBO=0,starVAO=0,starVBO=0;
     std::vector<V3> stars;
     int width=1,height=1,selected=0;
-    bool paused=false,retardedGravity=true,lightTimeView=false,birdMode=false,followSelected=true;
+    bool paused=false,retardedGravity=true,lightTimeView=false,birdMode=false,followSelected=true,placementMode=false;
     double simTime=0,simSpeed=3600.0;
     float yaw=0.6f,pitch=0.35f,cameraDistance=5.0f;
     V3 target{0,0,0};
@@ -363,6 +363,17 @@ public:
         for(int j=0;j<(int)bodies.size();j++)if(j!=idx){HistState hs=lightState(j,b.p);if(hs.luminous&&hs.mass>0){V3 d=hs.p-b.p;double dist=std::max(1.0,length(d));double lum=bodies[j].luminosity;if(lum<=0)lum=3.828e26;lightDir=norm(d);lightPower=f(clampd(lum/(4.0*PI*dist*dist)/1361.0,0,4));break;}}
         glUseProgram(surfaceProgram);glUniformMatrix4fv(glGetUniformLocation(surfaceProgram,"uMVP"),1,GL_FALSE,mvp.m);glUniformMatrix4fv(glGetUniformLocation(surfaceProgram,"uModel"),1,GL_FALSE,model.m);glUniform1f(glGetUniformLocation(surfaceProgram,"uTime"),f(std::fmod(simTime,100000.0)));glUniform1f(glGetUniformLocation(surfaceProgram,"uType"),float(b.material));glUniform1f(glGetUniformLocation(surfaceProgram,"uSeed"),float(b.seed));glUniform1f(glGetUniformLocation(surfaceProgram,"uTemperature"),f(b.temperature));glUniform3f(glGetUniformLocation(surfaceProgram,"uLightDir"),f(lightDir.x),f(lightDir.y),f(lightDir.z));glUniform1f(glGetUniformLocation(surfaceProgram,"uLightPower"),std::max(0.0f,lightPower));V3 tidal=tidalVector(idx);glUniform3f(glGetUniformLocation(surfaceProgram,"uTidal"),f(tidal.x),f(tidal.y),f(tidal.z));
         int n=std::min(int(b.craters.size()),MAX_CRATERS);std::array<float,MAX_CRATERS*3> dirs{};std::array<float,MAX_CRATERS*2> data{};for(int k=0;k<n;k++){dirs[k*3]=f(b.craters[k].direction.x);dirs[k*3+1]=f(b.craters[k].direction.y);dirs[k*3+2]=f(b.craters[k].direction.z);data[k*2]=b.craters[k].angularRadius;data[k*2+1]=b.craters[k].depth;}glUniform1i(glGetUniformLocation(surfaceProgram,"uCraterCount"),n);glUniform3fv(glGetUniformLocation(surfaceProgram,"uCraterDir[0]"),MAX_CRATERS,dirs.data());glUniform2fv(glGetUniformLocation(surfaceProgram,"uCraterData[0]"),MAX_CRATERS,data.data());glBindVertexArray(activeSphere.vao);glDrawElements(GL_TRIANGLES,activeSphere.count,GL_UNSIGNED_INT,0);glBindVertexArray(0);
+        // Layered, camera-facing Fresnel corona around the emissive photosphere.
+        if(b.material==STAR){
+            Mat4 coronaModel=modelMatrix(pos,f(std::max(renderRadiusAU*1.20,0.00001)),f(std::fmod(b.spin*simTime,2.0*PI)),0.0f);
+            Mat4 coronaMvp=multiply(multiply(perspective(0.78f,float(width)/height,f(std::max(1.0e-8,cameraDistance*0.0001)),f(std::max(0.02,cameraDistance*3.5))),lookAt(cam,cameraFocus(),V3(0,1,0))),coronaModel);
+            glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE);glDepthMask(GL_FALSE);glDisable(GL_CULL_FACE);
+            glUseProgram(atmoProgram);glUniformMatrix4fv(glGetUniformLocation(atmoProgram,"uMVP"),1,GL_FALSE,coronaMvp.m);glUniformMatrix4fv(glGetUniformLocation(atmoProgram,"uModel"),1,GL_FALSE,coronaModel.m);
+            glUniform3f(glGetUniformLocation(atmoProgram,"uCamera"),f(cam.x),f(cam.y),f(cam.z));glUniform1f(glGetUniformLocation(atmoProgram,"uTime"),f(std::fmod(simTime,100000.0)));
+            glUniform3f(glGetUniformLocation(atmoProgram,"uColor"),1.0f,0.34f,0.055f);glUniform1f(glGetUniformLocation(atmoProgram,"uDamage"),0.0f);glUniform3f(glGetUniformLocation(atmoProgram,"uHoleDir"),0,1,0);glUniform1f(glGetUniformLocation(atmoProgram,"uShockAge"),0.0f);glUniform1f(glGetUniformLocation(atmoProgram,"uLightPower"),1.0f);
+            glBindVertexArray(activeSphere.vao);glDrawElements(GL_TRIANGLES,activeSphere.count,GL_UNSIGNED_INT,0);glBindVertexArray(0);
+            glDepthMask(GL_TRUE);glDisable(GL_BLEND);glEnable(GL_CULL_FACE);
+        }
         if(b.hasRings){Mat4 ringModel=modelMatrix(pos,f(std::max(renderRadiusAU*1.35,0.00001)),f(std::fmod(b.spin*simTime,2.0*PI)),flattening(b));Mat4 ringMvp=multiply(multiply(perspective(0.78f,float(width)/height,f(std::max(1.0e-8,cameraDistance*0.0001)),f(std::max(0.02,cameraDistance*3.5))),lookAt(cam,cameraFocus(),V3(0,1,0))),ringModel);glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);glDisable(GL_CULL_FACE);glUseProgram(ringProgram);glUniformMatrix4fv(glGetUniformLocation(ringProgram,"uMVP"),1,GL_FALSE,ringMvp.m);glUniform1f(glGetUniformLocation(ringProgram,"uTime"),f(std::fmod(simTime,100000.0)));glBindVertexArray(ring.vao);glDrawElements(GL_TRIANGLES,ring.count,GL_UNSIGNED_INT,0);glBindVertexArray(0);glDisable(GL_BLEND);glEnable(GL_CULL_FACE);}
         if(b.hasAtmosphere){float shell=1.035f;Mat4 amodel=modelMatrix(pos,f(std::max(renderRadiusAU*shell,0.000004)),f(std::fmod(b.spin*simTime,2.0*PI)),flattening(b));Mat4 avp=multiply(multiply(perspective(0.78f,float(width)/height,f(std::max(1.0e-8,cameraDistance*0.0001)),f(std::max(0.02,cameraDistance*3.5))),lookAt(cam,cameraFocus(),V3(0,1,0))),amodel);glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);glDepthMask(GL_FALSE);glDisable(GL_CULL_FACE);glUseProgram(atmoProgram);glUniformMatrix4fv(glGetUniformLocation(atmoProgram,"uMVP"),1,GL_FALSE,avp.m);glUniformMatrix4fv(glGetUniformLocation(atmoProgram,"uModel"),1,GL_FALSE,amodel.m);glUniform3f(glGetUniformLocation(atmoProgram,"uCamera"),f(cam.x),f(cam.y),f(cam.z));glUniform1f(glGetUniformLocation(atmoProgram,"uTime"),f(std::fmod(simTime,100000.0)));glUniform1f(glGetUniformLocation(atmoProgram,"uDamage"),b.atmosphereDamage);glUniform1f(glGetUniformLocation(atmoProgram,"uLightPower"),std::max(0.0f,lightPower));glUniform3f(glGetUniformLocation(atmoProgram,"uHoleDir"),f(b.atmosphereHole.x),f(b.atmosphereHole.y),f(b.atmosphereHole.z));glUniform1f(glGetUniformLocation(atmoProgram,"uShockAge"),b.atmosphereEventTime<0?0:f(simTime-b.atmosphereEventTime));if(b.material==GAS||b.material==ICE)glUniform3f(glGetUniformLocation(atmoProgram,"uColor"),0.28f,0.63f,0.94f);else glUniform3f(glGetUniformLocation(atmoProgram,"uColor"),0.18f,0.48f,1.0f);glBindVertexArray(activeSphere.vao);glDrawElements(GL_TRIANGLES,activeSphere.count,GL_UNSIGNED_INT,0);glBindVertexArray(0);glDepthMask(GL_TRUE);glDisable(GL_BLEND);glEnable(GL_CULL_FACE);}
     }
@@ -372,7 +383,30 @@ public:
     void doubleTap(float x,float y){std::lock_guard<std::mutex> lock(mutex);V3 cam=cameraPosition();Mat4 proj=perspective(0.78f,float(width)/height,f(std::max(1.0e-8,cameraDistance*0.0001)),f(std::max(0.02,cameraDistance*3.5)));Mat4 view=lookAt(cam,cameraFocus(),V3(0,1,0));Mat4 vp=multiply(proj,view);double best=0.10;int pick=-1;
         for(int i=0;i<(int)bodies.size();i++)if(bodies[i].active&&bodies[i].visible){V3 p=visiblePosition(i,cam)/AU;float v[4]={f(p.x),f(p.y),f(p.z),1};float eye[4]{};for(int r=0;r<4;r++)for(int k=0;k<4;k++)eye[r]+=vp.m[k*4+r]*v[k];if(eye[3]<=0)continue;float sx=(eye[0]/eye[3]*0.5f+0.5f)*width;float sy=(1.0f-(eye[1]/eye[3]*0.5f+0.5f))*height;double d=std::hypot(sx-x,sy-y)/std::max(width,height);if(d<best){best=d;pick=i;}}
         if(pick>=0){selected=pick;target=bodies[pick].p;followSelected=true;birdMode=false;cameraDistance=std::max(0.0002f,float(bodies[pick].radius/AU*8.0));}}
-    void command(int cmd){std::lock_guard<std::mutex> lock(mutex);switch(cmd){case 0:paused=!paused;break;case 1:{if(simSpeed<59)simSpeed=60;else if(simSpeed<599)simSpeed=600;else if(simSpeed<3599)simSpeed=3600;else if(simSpeed<86399)simSpeed=86400;else simSpeed=1;break;}case 2:birdMode=!birdMode;followSelected=true;if(selected>=0&&selected<(int)bodies.size()){target=bodies[selected].p;if(birdMode)cameraDistance=float(std::max(0.00002,bodies[selected].radius/AU*2.6));else cameraDistance=std::max(cameraDistance,0.1f);}break;case 3:addNewPlanet();break;case 9:addMeteor();break;case 4:retardedGravity=!retardedGravity;break;case 5:lightTimeView=!lightTimeView;break;case 7:if(selected>=0&&selected<(int)bodies.size()){bodies[selected].active=false;bodies[selected].mass=0;bodies[selected].visible=false;selected=(selected==0?3:0);followSelected=true;if(selected<(int)bodies.size()&&bodies[selected].active){target=bodies[selected].p;if(selected==3)cameraDistance=std::max(0.0002f,float(bodies[selected].radius/AU*12.0));}}break;case 8:setupSolarSystem();break;}}
+    void command(int cmd){std::lock_guard<std::mutex> lock(mutex);switch(cmd){case 0:paused=!paused;break;case 1:{if(simSpeed<59)simSpeed=60;else if(simSpeed<599)simSpeed=600;else if(simSpeed<3599)simSpeed=3600;else if(simSpeed<86399)simSpeed=86400;else simSpeed=1;break;}case 2:birdMode=!birdMode;followSelected=true;if(selected>=0&&selected<(int)bodies.size()){target=bodies[selected].p;if(birdMode)cameraDistance=float(std::max(0.00002,bodies[selected].radius/AU*2.6));else cameraDistance=std::max(cameraDistance,0.1f);}break;case 3:placementMode=!placementMode;break;case 9:addMeteor();break;case 4:retardedGravity=!retardedGravity;break;case 5:lightTimeView=!lightTimeView;break;case 7:if(selected>=0&&selected<(int)bodies.size()){bodies[selected].active=false;bodies[selected].mass=0;bodies[selected].visible=false;selected=(selected==0?3:0);followSelected=true;if(selected<(int)bodies.size()&&bodies[selected].active){target=bodies[selected].p;if(selected==3)cameraDistance=std::max(0.0002f,float(bodies[selected].radius/AU*12.0));}}break;case 8:placementMode=false;setupSolarSystem();break;}}
+    void placePlanet(float sx,float sy){
+        std::lock_guard<std::mutex> lock(mutex);
+        if(!placementMode||bodies.size()>=MAX_BODIES)return;
+        const double aspect=double(width)/std::max(1,height),tanHalf=std::tan(0.78*0.5);
+        double nx=(2.0*double(sx)/std::max(1,width)-1.0),ny=(1.0-2.0*double(sy)/std::max(1,height));
+        V3 cam=cameraPosition(),forward=norm(cameraFocus()-cam),right=norm(cross(forward,V3(0,1,0))),up=norm(cross(right,forward));
+        V3 ray=norm(forward+right*(nx*aspect*tanHalf)+up*(ny*tanHalf));
+        // Place on the solar-system ecliptic (Y=0), using the actual camera ray.
+        double t=std::abs(ray.y)>0.012?(-cam.y/ray.y):cameraDistance*3.0;
+        if(t<=0.0||!std::isfinite(t))t=cameraDistance*3.0;
+        V3 point=cam+ray*t;point.y=0.0;
+        double r=std::hypot(point.x,point.z);if(r<0.28){V3 radial=norm(V3(point.x,0,point.z));point=radial*0.28;r=0.28;}
+        if(r>80.0){V3 radial=norm(V3(point.x,0,point.z));point=radial*80.0;r=80.0;}
+        if(bodies.size()>=MAX_BODIES)return;
+        Body b=makePlanet("Novo planeta",4.5e24,6.0e6,r,0.7,ROCK,5.0e-5,260,0.30,0.02,true);
+        b.p=point*AU;
+        V3 starVelocity=bodies.empty()?V3{}:bodies[0].v;
+        double centralMass=(!bodies.empty()&&bodies[0].mass>0)?bodies[0].mass:1.9885e30;
+        V3 tangent=norm(V3(-point.z,0,point.x));
+        b.v=starVelocity+tangent*std::sqrt(G*centralMass/(r*AU));
+        bodies.push_back(b);selected=int(bodies.size()-1);target=b.p;followSelected=true;birdMode=false;
+        cameraDistance=std::max(0.08f,float(r*0.18));placementMode=false;recordHistory();
+    }
     void addNewPlanet(){if(bodies.size()>=MAX_BODIES)return;double rAU=1.8;Body b=makePlanet("Novo planeta",4.5e24,6.0e6,rAU,0.7,ROCK,5.0e-5,260,0.30,0.02,true);b.p=V3(rAU*AU,0,0.6*AU);b.v=V3(-9000,0,24000);bodies.push_back(b);selected=int(bodies.size()-1);target=b.p;followSelected=true;cameraDistance=std::max(0.001f,float(b.radius/AU*12.0));recordHistory();}
     void addMeteor(){
         if(bodies.size()>=MAX_BODIES)return;
@@ -382,8 +416,8 @@ public:
         Body meteor;meteor.name="Asteroide (10 km)";meteor.mass=1.3e15;meteor.radius=5000;meteor.material=ROCK;meteor.temperature=220;meteor.ironFraction=0.18;meteor.iceFraction=0.03;meteor.seed=uint32_t(bodies.size()*991+411);meteor.p=targetBody.p+direction*(targetBody.radius+4.0e7);meteor.v=targetBody.v-direction*16500.0+tangent*2500.0;meteor.active=true;meteor.visible=true;selected=targetIndex;target=targetBody.p;followSelected=true;cameraDistance=std::max(0.0002f,float(targetBody.radius/AU*12.0));bodies.push_back(meteor);recordHistory();
     }
     void setParams(float massMul,float radiusMul,float spinMul){std::lock_guard<std::mutex> lock(mutex);if(selected<0||selected>=(int)bodies.size()||!bodies[selected].active)return;Body&b=bodies[selected];double oldMass=b.mass;b.mass*=clampd(massMul,0.05,5);b.radius*=clampd(radiusMul,0.05,5);b.spin*=clampd(spinMul,0,5);if(oldMass>0)b.temperature*=std::pow(b.mass/oldMass,0.08);recordHistory();}
-    std::string status(){std::lock_guard<std::mutex> lock(mutex);char out[1024];const Body*b=(selected>=0&&selected<(int)bodies.size())?&bodies[selected]:nullptr;double massEarth=b&&b->mass>0?b->mass/5.972e24:0;double radiusKm=b?b->radius/1000:0;double dayHours=b&&std::abs(b->spin)>1e-12?std::abs(2*PI/b->spin/3600):0;const char*grav=retardedGravity?"c retardada (experimental)":"Newton estável";const char*view=lightTimeView?"cone de luz":"posição atual";double iron=b?b->ironFraction*100.0:0,ice=b?b->iceFraction*100.0:0;const char*atmo=b&&b->hasAtmosphere?"atmosfera":"sem atmosfera";std::snprintf(out,sizeof(out),"%s | t = %.2f dias | ×%.0f\nFoco: %s | massa %.3g Terras | raio %.0f km | T %.0f K\nGrav.: %s | Luz: %s | giro %.2f h | Fe %.0f%% gelo %.0f%% | %s | N %zu / detritos %zu",
-            paused?"PAUSADO":"SIMULANDO",simTime/DAY,simSpeed,b?b->name.c_str():"nenhum",massEarth,radiusKm,b?b->temperature:0,grav,view,dayHours,iron,ice,atmo,bodies.size(),ejecta.size());return out;}
+    std::string status(){std::lock_guard<std::mutex> lock(mutex);char out[1024];const Body*b=(selected>=0&&selected<(int)bodies.size())?&bodies[selected]:nullptr;double massEarth=b&&b->mass>0?b->mass/5.972e24:0;double radiusKm=b?b->radius/1000:0;double dayHours=b&&std::abs(b->spin)>1e-12?std::abs(2*PI/b->spin/3600):0;const char*grav=retardedGravity?"c retardada (experimental)":"Newton estável";const char*view=lightTimeView?"cone de luz":"posição atual";const char*camera=birdMode?"PASSARINHO":"ÓRBITA LIVRE";double iron=b?b->ironFraction*100.0:0,ice=b?b->iceFraction*100.0:0;const char*atmo=b&&b->hasAtmosphere?"atmosfera":"sem atmosfera";std::snprintf(out,sizeof(out),"%s | t = %.2f dias | ×%.0f\nFoco: %s | massa %.3g Terras | raio %.0f km | T %.0f K\nGrav.: %s | Luz: %s | Câmera: %s | Posicionar: %s\nGiro %.2f h | Fe %.0f%% gelo %.0f%% | %s | N %zu / detritos %zu",
+            paused?"PAUSADO":"SIMULANDO",simTime/DAY,simSpeed,b?b->name.c_str():"nenhum",massEarth,radiusKm,b?b->temperature:0,grav,view,camera,placementMode?"TOQUE NO ESPAÇO":"desligado",dayHours,iron,ice,atmo,bodies.size(),ejecta.size());return out;}
 };
 
 static Engine engine;
@@ -396,6 +430,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_nebula_universelab_MainActivity_nativ
 extern "C" JNIEXPORT void JNICALL Java_com_nebula_universelab_MainActivity_nativeRender(JNIEnv*, jobject, jfloat dt){engine.update(dt);engine.draw(engine.width,engine.height);}
 extern "C" JNIEXPORT void JNICALL Java_com_nebula_universelab_MainActivity_nativeTouch(JNIEnv*, jobject, jint action, jfloat x, jfloat y, jfloat dx, jfloat dy, jfloat scale){engine.touch(action,x,y,dx,dy,scale);}
 extern "C" JNIEXPORT void JNICALL Java_com_nebula_universelab_MainActivity_nativeDoubleTap(JNIEnv*, jobject, jfloat x, jfloat y){engine.doubleTap(x,y);}
+extern "C" JNIEXPORT void JNICALL Java_com_nebula_universelab_MainActivity_nativePlacePlanet(JNIEnv*, jobject, jfloat x, jfloat y){engine.placePlanet(x,y);}
 extern "C" JNIEXPORT void JNICALL Java_com_nebula_universelab_MainActivity_nativeCommand(JNIEnv*, jobject, jint cmd){engine.command(cmd);}
 extern "C" JNIEXPORT jstring JNICALL Java_com_nebula_universelab_MainActivity_nativeGetStatus(JNIEnv* env, jobject){std::string s=engine.status();return env->NewStringUTF(s.c_str());}
 extern "C" JNIEXPORT void JNICALL Java_com_nebula_universelab_MainActivity_nativeSetParameters(JNIEnv*, jobject, jfloat m, jfloat r, jfloat s){engine.setParams(m,r,s);}

@@ -21,6 +21,8 @@ import android.widget.TextView;
 import android.widget.FrameLayout;
 
 import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -33,6 +35,8 @@ public final class MainActivity extends Activity {
 
     private GLSurfaceView glView;
     private TextView statusView;
+    private TextView placementHint;
+    private final Map<Integer, TextView> commandButtons = new HashMap<>();
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private boolean activityResumed = false;
 
@@ -42,6 +46,7 @@ public final class MainActivity extends Activity {
     private native void nativeTouch(int action, float x, float y,
                                     float dx, float dy, float scale);
     private native void nativeDoubleTap(float x, float y);
+    private native void nativePlacePlanet(float x, float y);
     private native void nativeCommand(int command);
     private native String nativeGetStatus();
     private native void nativeSetParameters(float massMultiplier,
@@ -53,7 +58,20 @@ public final class MainActivity extends Activity {
             if (!activityResumed || statusView == null) return;
             try {
                 String status = nativeGetStatus();
-                if (status != null) statusView.setText(status);
+                if (status != null) {
+                    statusView.setText(status);
+                    boolean placing = status.contains("Posicionar: TOQUE NO ESPAÇO");
+                    placementHint.setVisibility(placing ? View.VISIBLE : View.GONE);
+                    boolean paused = status.contains("PAUSADO");
+                    boolean bird = status.contains("Câmera: PASSARINHO");
+                    boolean delayedGravity = status.contains("Grav.: c retardada");
+                    boolean delayedLight = status.contains("Luz: cone de luz");
+                    updateButtonState(0, paused, paused ? "▶  RETOMAR" : "Ⅱ  PAUSAR");
+                    updateButtonState(2, bird, bird ? "◎  PASSARINHO" : "◎  CÂMERA");
+                    updateButtonState(3, placing, placing ? "✕  CANCELAR" : "＋  PLANETA");
+                    updateButtonState(4, delayedGravity, delayedGravity ? "GRAV. RETARDADA" : "GRAV. NEWTON");
+                    updateButtonState(5, delayedLight, delayedLight ? "LUZ ATRASADA" : "LUZ ATUAL");
+                }
             } catch (RuntimeException ignored) {
                 // The GL context can be recreated while Android is changing windows.
             }
@@ -79,49 +97,79 @@ public final class MainActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
+        // Compact HUD: the simulation remains visible while controls stay grouped and legible.
+        LinearLayout hud = new LinearLayout(this);
+        hud.setOrientation(LinearLayout.VERTICAL);
+        hud.setPadding(dp(14), dp(10), dp(14), dp(10));
+        hud.setBackground(panelBackground(0xE8101D30));
+        TextView brand = new TextView(this);
+        brand.setText("NEBULA  /  LABORATÓRIO ORBITAL");
+        brand.setTextColor(Color.rgb(118, 210, 255));
+        brand.setTextSize(12f);
+        brand.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        hud.addView(brand);
         statusView = new TextView(this);
-        statusView.setTextColor(Color.rgb(220, 236, 255));
-        statusView.setTextSize(11f);
-        statusView.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        statusView.setPadding(dp(12), dp(8), dp(12), dp(8));
-        statusView.setBackground(panelBackground(0xB9142035));
-        statusView.setText("NEBULA · inicializando simulação...");
-        FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP | Gravity.START);
-        statusParams.setMargins(dp(8), dp(8), dp(8), dp(8));
-        root.addView(statusView, statusParams);
+        statusView.setTextColor(Color.rgb(232, 241, 255));
+        statusView.setTextSize(10f);
+        statusView.setMaxLines(3);
+        statusView.setPadding(0, dp(5), 0, 0);
+        statusView.setText("INICIALIZANDO  ·  preparando o universo...");
+        hud.addView(statusView);
+        FrameLayout.LayoutParams hudParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        hudParams.setMargins(dp(10), dp(10), dp(10), 0);
+        root.addView(hud, hudParams);
 
-        HorizontalScrollView controlScroller = new HorizontalScrollView(this);
-        controlScroller.setHorizontalScrollBarEnabled(false);
-        controlScroller.setFillViewport(false);
-        LinearLayout controls = new LinearLayout(this);
-        controls.setOrientation(LinearLayout.HORIZONTAL);
-        controls.setGravity(Gravity.CENTER_VERTICAL);
-        controls.setPadding(dp(6), dp(6), dp(6), dp(6));
-        controls.setBackground(panelBackground(0xD90A1426));
+        placementHint = new TextView(this);
+        placementHint.setText("＋  POSICIONAR PLANETA  ·  toque no ponto da órbita onde deseja criar");
+        placementHint.setTextColor(Color.WHITE);
+        placementHint.setTextSize(12f);
+        placementHint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        placementHint.setGravity(Gravity.CENTER);
+        placementHint.setPadding(dp(14), dp(11), dp(14), dp(11));
+        placementHint.setBackground(panelBackground(0xEE087F8C));
+        placementHint.setVisibility(View.GONE);
+        FrameLayout.LayoutParams hintParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER_HORIZONTAL | Gravity.CENTER_VERTICAL);
+        hintParams.setMargins(dp(18), 0, dp(18), dp(70));
+        root.addView(placementHint, hintParams);
 
-        addButton(controls, "Ⅱ PAUSAR", 0);
-        addButton(controls, "TEMPO ×", 1);
-        addButton(controls, "CÂMERA", 2);
-        addButton(controls, "+ PLANETA", 3);
-        addButton(controls, "GRAVIDADE", 4);
-        addButton(controls, "LUZ / VISÃO", 5);
-        addButton(controls, "EDITAR", -1);
-        addButton(controls, "METEORO", 9);
-        addButton(controls, "REMOVER", 7);
-        addButton(controls, "RESET", 8);
-
-        controlScroller.addView(controls, new HorizontalScrollView.LayoutParams(
-                HorizontalScrollView.LayoutParams.WRAP_CONTENT,
-                HorizontalScrollView.LayoutParams.WRAP_CONTENT));
-        FrameLayout.LayoutParams controlParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
+        LinearLayout dock = new LinearLayout(this);
+        dock.setOrientation(LinearLayout.VERTICAL);
+        dock.setPadding(dp(7), dp(7), dp(7), dp(7));
+        dock.setBackground(panelBackground(0xF20A1425));
+        LinearLayout rowA = new LinearLayout(this);
+        rowA.setOrientation(LinearLayout.HORIZONTAL);
+        rowA.setGravity(Gravity.CENTER);
+        LinearLayout rowB = new LinearLayout(this);
+        rowB.setOrientation(LinearLayout.HORIZONTAL);
+        rowB.setGravity(Gravity.CENTER);
+        addButton(rowA, "Ⅱ  PAUSAR", 0);
+        addButton(rowA, "⏩  TEMPO", 1);
+        addButton(rowA, "◎  CÂMERA", 2);
+        addButton(rowA, "＋  PLANETA", 3);
+        addButton(rowA, "GRAV. NEWTON", 4);
+        addButton(rowB, "LUZ ATUAL", 5);
+        addButton(rowB, "☄  IMPACTO", 9);
+        addButton(rowB, "EDITAR", -1);
+        addButton(rowB, "APAGAR", 7);
+        addButton(rowB, "RESET", 8);
+        dock.addView(rowA);
+        dock.addView(rowB);
+        TextView gestureHelp = new TextView(this);
+        gestureHelp.setText("1 dedo: orbitar  ·  arraste 2 dedos: deslocar  ·  pinça: zoom  ·  toque duplo: focar");
+        gestureHelp.setTextColor(Color.rgb(151, 174, 204));
+        gestureHelp.setTextSize(9f);
+        gestureHelp.setGravity(Gravity.CENTER);
+        gestureHelp.setPadding(0, dp(5), 0, 0);
+        dock.addView(gestureHelp);
+        FrameLayout.LayoutParams dockParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        controlParams.setMargins(dp(8), dp(8), dp(8), dp(8));
-        root.addView(controlScroller, controlParams);
+        dockParams.setMargins(dp(8), 0, dp(8), dp(8));
+        root.addView(dock, dockParams);
 
         setContentView(root);
     }
@@ -129,16 +177,17 @@ public final class MainActivity extends Activity {
     private void addButton(LinearLayout parent, String label, int command) {
         TextView button = new TextView(this);
         button.setText(label);
-        button.setTextColor(Color.WHITE);
-        button.setTextSize(11f);
+        button.setTextColor(Color.rgb(225, 238, 255));
+        button.setTextSize(10f);
         button.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         button.setGravity(Gravity.CENTER);
-        button.setPadding(dp(12), dp(11), dp(12), dp(11));
-        button.setBackground(panelBackground(0xFF183453));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, dp(42));
-        params.setMargins(dp(3), 0, dp(3), 0);
+        button.setPadding(dp(7), dp(10), dp(7), dp(10));
+        button.setBackground(panelBackground(0xFF1A2C43));
+        button.setMinHeight(dp(42));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        params.setMargins(dp(2), dp(2), dp(2), dp(2));
         parent.addView(button, params);
+        if (command >= 0) commandButtons.put(command, button);
         button.setOnClickListener(v -> {
             if (command == -1) showBodyEditor();
             else {
@@ -146,6 +195,15 @@ public final class MainActivity extends Activity {
                 glView.requestRender();
             }
         });
+    }
+
+    private void updateButtonState(int command, boolean active, String label) {
+        TextView button = commandButtons.get(command);
+        if (button == null) return;
+        button.setText(label);
+        int bg = active ? 0xFF087F8C : 0xFF1A2C43;
+        button.setBackground(panelBackground(bg));
+        button.setTextColor(active ? Color.WHITE : Color.rgb(225, 238, 255));
     }
 
     private void showBodyEditor() {
@@ -285,6 +343,12 @@ public final class MainActivity extends Activity {
                                 return true;
                             }
                             return false;
+                        }
+                        @Override public boolean onSingleTapConfirmed(MotionEvent event) {
+                            // The native placement tool ignores taps unless placement mode is active.
+                            nativePlacePlanet(event.getX(), event.getY());
+                            requestRender();
+                            return true;
                         }
                         @Override public boolean onDoubleTap(MotionEvent event) {
                             nativeDoubleTap(event.getX(), event.getY());
