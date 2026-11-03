@@ -11,7 +11,7 @@ NEBULA is a mobile, real-time space sandbox. The Android interface is Java, whil
 3. Open the successful workflow run and download the artifact named **NEBULA-Universe-Sandbox-APK**.
 4. Inside the artifact is `app-debug.apk`. Install it on an Android device that supports OpenGL ES 3.0.
 
-The workflow installs Android API 35, NDK `27.2.12479018`, CMake `3.22.1`, Java 17 and Gradle `8.10.2`, then runs `gradle assembleDebug`.
+The workflow uses `android-actions/setup-android@v4` to install Android API 35, Build Tools `35.0.0`, NDK `27.2.12479018` and CMake `3.22.1` while accepting SDK licenses in that action. It then configures Java 17 and Gradle `8.10.2` and runs `gradle assembleDebug`. The workflow deliberately does not run `sdkmanager --licenses` a second time.
 
 ### Build locally
 
@@ -77,7 +77,7 @@ This is a **mobile reduced-order impact model inspired by multi-material SPH gia
 ```text
 .github/workflows/android.yml       GitHub Actions APK build
 app/src/main/AndroidManifest.xml    Android app declaration
-app/src/main/java/.../MainActivity.java  Touch UI, gestures, OpenGL surface and JNI bridge
+app/src/main/java/com/nebula/universelab/MainActivity.java  Touch UI, gestures, OpenGL surface and JNI bridge
 app/src/main/cpp/CMakeLists.txt     Native build configuration
 app/src/main/cpp/native-lib.cpp     N-body simulation, collisions, history, shaders and renderer
 app/build.gradle                    Android Gradle / NDK configuration
@@ -94,3 +94,16 @@ app/build.gradle                    Android Gradle / NDK configuration
 ## License
 
 Source code in this project is provided under the MIT License. See `LICENSE`.
+
+## Build troubleshooting
+
+- If the job fails in the Android SDK setup step, check that `android-actions/setup-android@v4` is used and that the workflow has not added a second `sdkmanager --licenses` command.
+- If the build reaches `:app:externalNativeBuildDebug`, inspect the CMake/NDK compiler output; that is a separate stage from SDK installation.
+- The Android launcher Activity is `app/src/main/java/com/nebula/universelab/MainActivity.java`; its native declarations match the JNI exports in `native-lib.cpp`.
+
+## Changes in the CI repair
+
+- Android SDK setup was updated to `android-actions/setup-android@v4` and command-line tools `22.0` (build `15859902`); the action accepts licenses itself, so the workflow no longer invokes a duplicate manual license step.
+- The workflow pins API 35, Build Tools `35.0.0`, NDK `27.2.12479018`, CMake `3.22.1`, Java 17 and Gradle `8.10.2`.
+- Added the missing launcher `MainActivity.java`, including the OpenGL ES 3.0 surface, native JNI bridge, touch gestures, status panel and controls.
+- Removed `-ffast-math` from the native compile flags to avoid relaxing floating-point behavior used by numerical simulation checks.
