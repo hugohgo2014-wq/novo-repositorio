@@ -60,6 +60,7 @@ mod inspector;
 mod keyboard;
 mod keyframes;
 mod menus;
+mod meme;
 #[cfg(test)]
 mod merge_words_tests;
 mod monitor;
@@ -1029,6 +1030,8 @@ pub struct Studio {
     /// Unsaved changes, and the timer that writes them.
     dirty: bool,
     autosave: slint::Timer,
+    /// Ticks the optional, purely cosmetic PRO+ joke while the app is open.
+    meme_timer: slint::Timer,
 
     // ── the bin ──
     pub media: crate::panes::media_bin::MediaBin,
@@ -3089,6 +3092,7 @@ impl Studio {
             empty: Project::new(),
             dirty: false,
             autosave: slint::Timer::default(),
+            meme_timer: slint::Timer::default(),
             media: crate::panes::media_bin::MediaBin::default(),
             peaks: HashMap::new(),
             strips: HashMap::new(),
