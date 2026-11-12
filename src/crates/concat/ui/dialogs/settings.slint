@@ -91,6 +91,8 @@ export struct SettingsData {
     shares-log: bool,
     /// the magnetic timeline: deleting and trimming close the gap
     magnetic: bool,
+    /// optional two-hour fake PRO+ joke; never gates a feature
+    meme-limit: bool,
     /// where model downloads look first: automatic, Concat's mirror,
     /// hf-mirror.com, the original source, a custom URL
     download-source: int,
@@ -681,6 +683,7 @@ export component SettingsDialog inherits Sheet {
     callback remember-layout-changed(on: bool);
     callback gpu-changed(on: bool);
     callback magnetic-changed(on: bool);
+    callback meme-limit-changed(on: bool);
     callback download-source-changed(index: int);
     callback download-base-edited(text: string);
     callback server-enabled-changed(on: bool);
@@ -1003,6 +1006,18 @@ export component SettingsDialog inherits Sheet {
                     on: root.data.magnetic;
                     open: false;
                     switched(on) => { root.magnetic-changed(on); }
+                }
+
+                // A deliberately fake paywall gag. It never gates a real
+                // action; the switch resets its timer and cancels any roast.
+                DialogSection {
+                    ruled: false;
+                    title: "Limite falso PRO+ (meme)";
+                    hint: "Após 2 horas, mostra avisos de brincadeira. Nenhuma função é bloqueada. Desative aqui quando quiser.";
+                    switchable: true;
+                    on: root.data.meme-limit;
+                    open: false;
+                    switched(on) => { root.meme-limit-changed(on); }
                 }
 
                 // Off, the playhead goes wherever the ruler is clicked, past
