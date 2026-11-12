@@ -407,6 +407,7 @@ export component App inherits Window {
     callback settings-remember-layout-changed(on: bool);
     callback settings-gpu-changed(on: bool);
     callback settings-magnetic-changed(on: bool);
+    callback settings-meme-limit-changed(on: bool);
     callback settings-download-source-changed(index: int);
     callback settings-download-base-edited(text: string);
     callback settings-server-enabled-changed(on: bool);
@@ -1053,6 +1054,7 @@ export component App inherits Window {
         remember-layout-changed(on) => { root.settings-remember-layout-changed(on); }
         gpu-changed(on) => { root.settings-gpu-changed(on); }
         magnetic-changed(on) => { root.settings-magnetic-changed(on); }
+        meme-limit-changed(on) => { root.settings-meme-limit-changed(on); }
         download-source-changed(index) => { root.settings-download-source-changed(index); }
         download-base-edited(text) => { root.settings-download-base-edited(text); }
         server-enabled-changed(on) => { root.settings-server-enabled-changed(on); }
