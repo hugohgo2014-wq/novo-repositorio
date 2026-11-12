@@ -491,7 +491,6 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         models: Models::new(),
     });
     Shell::install(shell.clone());
-    shell.studio.borrow_mut().start_meme_timer(&app);
 
     // The machine's fonts, for the Text inspector's picker. Read on a
     // worker: on a machine with a few thousand faces it is a moment, and
@@ -2284,9 +2283,6 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     }));
     app.on_settings_magnetic_changed(on_window!(|state, on: bool| {
         state.handle(Msg::Settings(SettingsMsg::MagneticChanged(on)));
-    }));
-    app.on_settings_meme_limit_changed(on_window!(|state, on: bool| {
-        state.handle(Msg::Settings(SettingsMsg::MemeLimitChanged(on)));
     }));
     app.on_settings_download_source_changed(on_window!(|state, index: i32| {
         state.handle(Msg::Settings(SettingsMsg::DownloadSourceChanged(index)));

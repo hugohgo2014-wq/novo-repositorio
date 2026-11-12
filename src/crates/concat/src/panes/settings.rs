@@ -65,8 +65,6 @@ pub enum SettingsMsg {
     GpuChanged(bool),
     /// The magnetic timeline switch; the tray's button is the same fact.
     MagneticChanged(bool),
-    /// Optional, non-blocking PRO+ fake-limit joke.
-    MemeLimitChanged(bool),
     DownloadSourceChanged(i32),
     DownloadBaseEdited(String),
     ServerEnabledChanged(bool),
@@ -427,16 +425,6 @@ impl SettingsPane {
             SettingsMsg::MagneticChanged(on) => {
                 log::info!("settings: Magnetic timeline {}", on_off(on));
                 studio.prefs.set_magnetic(on);
-                studio.prefs.save(&studio.host.dirs);
-            }
-            SettingsMsg::MemeLimitChanged(on) => {
-                log::info!("settings: Fake PRO+ limit joke {}", on_off(on));
-                studio.prefs.meme_fake_limit_enabled = Some(on);
-                // Turning it off cancels any delayed roast; turning it back
-                // on starts a fresh two-hour gag rather than resuming one.
-                studio.prefs.meme_fake_limit_usage_seconds = 0;
-                studio.prefs.meme_fake_limit_stage = 0;
-                studio.prefs.meme_fake_limit_roast_at = None;
                 studio.prefs.save(&studio.host.dirs);
             }
             SettingsMsg::DownloadSourceChanged(index) => {
@@ -1035,7 +1023,6 @@ impl SettingsPane {
             gpu_switchable: cfg!(any(windows, target_os = "linux", target_os = "macos")),
             shares_log: cfg!(target_os = "android"),
             magnetic: studio.prefs.magnetic(),
-            meme_limit: studio.prefs.meme_fake_limit_enabled(),
             download_source: self.download_source as i32,
             download_base: self.download_base.as_str().into(),
             server_enabled: studio.prefs.server.enabled,
