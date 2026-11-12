@@ -1080,6 +1080,14 @@ export component PhoneEditor inherits Rectangle {
                 current: root.sheet == "clip-text";
                 clicked => { root.show("clip-text", true); }
             }
+            // Motion/keyframes are a primary mobile editing tool, so keep
+            // them beside the clip's basic canvas/text controls.
+            if root.is-picture || root.is-text || root.is-shape: ToolItem {
+                glyph: Glyph.circle-play;
+                label: I18n.t("motion.animate");
+                current: root.sheet == "clip-animate";
+                clicked => { root.show("clip-animate", true); }
+            }
             if root.is-layer: ToolItem {
                 glyph: Glyph.filter;
                 label: I18n.t("configPane.filter");
@@ -1119,13 +1127,6 @@ export component PhoneEditor inherits Rectangle {
                 label: I18n.t("configPane.audioEffects");
                 current: root.sheet == "clip-audio-effects";
                 clicked => { root.show("clip-audio-effects", true); }
-            }
-            // In, Out and Loop: the moves a clip, a title or a shape makes.
-            if root.is-picture || root.is-text || root.is-shape: ToolItem {
-                glyph: Glyph.circle-play;
-                label: I18n.t("motion.animate");
-                current: root.sheet == "clip-animate";
-                clicked => { root.show("clip-animate", true); }
             }
             // The Mask, on a sheet of its own.
             if root.is-picture: ToolItem {
