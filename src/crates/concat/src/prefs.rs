@@ -169,6 +169,15 @@ pub struct Preferences {
     /// by Settings › Shortcuts; resolved in [`crate::keymap`].
     #[serde(default)]
     pub keybinds: BTreeMap<String, String>,
+    /// Optional fake PRO+ usage-limit joke. It never restricts editing,
+    /// playback, imports, or exports; it only schedules two toast messages.
+    pub meme_fake_limit_enabled: Option<bool>,
+    /// Active foreground seconds accumulated for the fake limit.
+    pub meme_fake_limit_usage_seconds: u64,
+    /// 0 = waiting for first toast, 1 = roast pending, 2 = both shown.
+    pub meme_fake_limit_stage: u8,
+    /// Unix timestamp for the delayed roast, persisted across app restarts.
+    pub meme_fake_limit_roast_at: Option<u64>,
 }
 
 /// The voiceover panel's choices, kept from one take to the next and one
@@ -204,6 +213,12 @@ impl Default for VoiceoverPrefs {
 }
 
 impl Preferences {
+    /// The fake-limit gag is on for a fresh install; an explicit saved false
+    /// is the user's opt-out and survives upgrades.
+    pub fn meme_fake_limit_enabled(&self) -> bool {
+        self.meme_fake_limit_enabled.unwrap_or(true)
+    }
+
     /// Whether the timeline shows its VU meters; see `vu_meters`.
     pub fn meters_shown(&self) -> bool {
         self.vu_meters.unwrap_or(true)
@@ -440,6 +455,20 @@ fn write_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The fake PRO+ message starts enabled on a fresh install, but an
+    /// explicit opt-out stays off after preferences are loaded again.
+    #[test]
+    fn the_fake_pro_limit_is_on_by_default_and_can_be_disabled() {
+        let mut prefs = Preferences::default();
+        assert!(prefs.meme_fake_limit_enabled());
+        prefs.meme_fake_limit_enabled = Some(false);
+        assert!(!prefs.meme_fake_limit_enabled());
+        let saved = serde_json::to_string(&prefs).expect("preferences serialize");
+        let loaded: Preferences = serde_json::from_str(&saved).expect("preferences deserialize");
+        assert!(!loaded.meme_fake_limit_enabled());
+    }
+
 
     /// A choice made is kept, whatever the platform's default: a phone
     /// that turned the magnet off stays off, and a desk that turned it on
