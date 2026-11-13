@@ -283,7 +283,7 @@ export component KeyframesPane inherits Pane {
     property <KeyRowData> focus-row: root.any ? root.rows[root.shown] : root.rows[0];
     property <length> row-h: 34px;
     property <length> ruler-h: 22px;
-    property <length> column-w: Math.min(300px, root.width * 0.46);
+    property <length> column-w: 300px;
 
     /// The ease shown in the menu: into the key at the playhead, else the
     /// next key; Rust picks it, since a Slint function cannot loop.
