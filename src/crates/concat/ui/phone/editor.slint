@@ -1045,6 +1045,11 @@ export component PhoneEditor inherits Rectangle {
                 }
             }
             ToolItem {
+                glyph: Glyph.keyframe;
+                label: I18n.t("common.keyframes");
+                clicked => { Editor.key-mark-opened(); }
+            }
+            ToolItem {
                 glyph: Glyph.split;
                 label: I18n.t("phone.split");
                 clicked => { Editor.shortcut("split-selected"); }
