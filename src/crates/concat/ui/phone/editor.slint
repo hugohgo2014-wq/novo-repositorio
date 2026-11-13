@@ -10,7 +10,6 @@ import { Lanes } from "../timeline/lanes.slint";
 import { ClipField, ClipKind, SelectedClipData } from "../timeline/model.slint";
 import { Param, ParamFormat, SwitchRow } from "../inspector/controls.slint";
 import { PreviewPane } from "../workspace/preview-pane.slint";
-import { KeyframesPane } from "../workspace/keyframes-pane.slint";
 import { ContextMenu } from "../primitives/context-menu.slint";
 import {
     CategoryPillBar, GroupPillBar, MediaCard, MediaItemData, PresetGrid, ShelfGrid, ShelfSearch,
@@ -453,7 +452,6 @@ export component PhoneEditor inherits Rectangle {
             : name == "clip-enhance" ? I18n.t("common.enhance")
             : name == "clip-layer" ? I18n.t("configPane.filter")
             : name == "clip-mask" ? I18n.t("mask.title")
-            : name == "clip-keyframes" ? I18n.t("common.keyframes")
             : name == "clip-animate" ? I18n.t("motion.animate")
             : "";
     }
@@ -1047,11 +1045,6 @@ export component PhoneEditor inherits Rectangle {
                 }
             }
             ToolItem {
-                glyph: Glyph.keyframe;
-                label: I18n.t("common.keyframes");
-                clicked => { root.show("clip-keyframes", true); }
-            }
-            ToolItem {
                 glyph: Glyph.split;
                 label: I18n.t("phone.split");
                 clicked => { Editor.shortcut("split-selected"); }
@@ -1563,17 +1556,6 @@ export component PhoneEditor inherits Rectangle {
             cutout-painting(on) => { Editor.cutout-painting(on); }
             cutout-subject(index) => { Editor.cutout-subject(index); }
             cutout-clear => { Editor.cutout-clear(); }
-        }
-
-        if root.sheet == "clip-keyframes": KeyframesPane {
-            selected: Editor.selected-clip;
-            pane-seat: -1;
-            pane-removable: false;
-            pane-picked(kind) => { }
-            pane-removed => { root.hide(); }
-            clip-set(field, value) => { Editor.clip-set(field, value); }
-            adjust-set(key, value) => { Editor.adjust-set(key, value); }
-            clip-commit => { Editor.clip-commit(); }
         }
 
         if root.sheet == "clip-animate": AnimatePanel {
